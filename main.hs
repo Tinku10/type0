@@ -5,31 +5,29 @@ import Data.List (intersect)
 import Types (Type(..), Expr(..))
 import TypeChecker (typeCheck, TypeEnv, ValueEnv)
 import Evaluator (eval)
+import Runner (runProgram)
 
-
-runProgram :: TypeEnv -> ValueEnv -> [Expr] -> IO (Either String Expr)
-runProgram _ venv [] = return (Right NoOp)
-runProgram tenv venv ((Print x):xs) = do
-  case eval tenv venv x of
-    Right (_, _, y) -> do
-      print y
-      runProgram tenv venv xs
-    Left x -> return (Left x)
-runProgram tenv venv (x:xs) = do
-  case eval tenv venv x of
-    Right (tenv', venv', y) -> runProgram tenv' venv' xs
-    Left x -> return (Left x)
 
 main = do
-  let typeEnv = []
-  let valueEnv = []
+  let typeEnv :: TypeEnv
+      typeEnv = []
+      valueEnv :: ValueEnv
+      valueEnv = []
 
-  let program =
+  -- program can call subprograms just like functions
+  let routine2 = 
         [
+          Print (Assign (Var "hello") (Print (LString "Hello form routine2")))
+        ]
+
+  let routine1 =
+        [
+          Print (LString "Hello from routine1"),
           Assign (Var "x") (LInt 10),
           Assign (Var "y") (Add (Var "x") (LInt 10)),
           Assign (Var "z") (Add (Var "x") (Var "y")),
           Print (Add (Var "x") (Var "y")),
+          Call routine2,
           Assign (Var "w") (LComposite "Person" [
             ("name", LString "John"),
             ("age", LInt 20)
@@ -40,4 +38,10 @@ main = do
           Print (Or (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2]))
         ]
 
-  runProgram typeEnv valueEnv program
+  let mainProgram = 
+        [
+          Call routine1
+        ]
+
+  runProgram typeEnv valueEnv mainProgram
+  -- runProgram typeEnv valueEnv program

@@ -60,3 +60,11 @@ typeCheck env (Or x y) = do
     (TList x, TList y) -> if x == y then Right (TList x) else Left "Lists should be of same type"
 
 typeCheck env (Print x) = typeCheck env x >>= \t -> Right t
+
+-- type of a function is the type of the last expression
+typeCheck env (Call []) = Left "Programs cannot be blank"
+typeCheck env (Call [x]) = typeCheck env x
+typeCheck env (Call xs) = do
+  ts <- mapM (typeCheck env) xs
+  Right (last ts)
+  

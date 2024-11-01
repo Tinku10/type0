@@ -22,6 +22,7 @@ data Expr
   | Add             Expr Expr
   | And             Expr Expr
   | Or              Expr Expr
+  | Call            [Expr]
   | NoOp
   deriving (Show, Eq)
 

@@ -82,3 +82,28 @@ eval tenv venv (Or x y) = do
       (LList a, LList b) -> Right (tenv, venv, LList (a `union` b))
       _ -> Left "Both arguments should be of type list"
     Left t -> Left t
+
+eval tenv venv (Call []) = Left "Cannot call an empty program"
+eval tenv venv (Call (x:xs)) = do
+  -- typecheck is not applicable right now
+  -- it would be applicable when functions have types
+  -- maybe we can pass arguments to call and have returns -> Call [Expr] Expr Expr
+  (tenv', venv', r) <- helper tenv venv (x:xs)
+  -- restore the environment
+  Right (tenv', venv', r)
+
+  where
+    helper :: TypeEnv -> ValueEnv -> [Expr] -> Either String (TypeEnv, ValueEnv, Expr)
+    helper tenv venv [] = Right (tenv, venv, NoOp)
+    helper tenv venv ((Call x):xs) = do
+      let tenv' :: TypeEnv
+          tenv' = []
+          venv' :: ValueEnv
+          venv' = []
+      (tenv'', venv'', _) <- eval tenv' venv' (Call x)
+      helper tenv' venv' xs
+    helper tenv venv (x:xs) = do
+      case eval tenv venv x of
+        Right (tenv', venv', y) -> helper tenv' venv' xs
+        Left x -> Left x
+   
