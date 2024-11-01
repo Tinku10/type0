@@ -2,6 +2,7 @@ module Evaluator (eval) where
 
 import TypeChecker (TypeEnv, ValueEnv, typeCheck)
 import Types (Expr(..), Type(..))
+import Data.List (intersect, union)
 
 eval :: TypeEnv -> ValueEnv -> Expr -> Either String (TypeEnv, ValueEnv, Expr)
 eval tenv venv (LInt x) = Right (tenv, venv, LInt x)
@@ -41,8 +42,8 @@ eval tenv venv (Get x y) = do
   t <- typeCheck tenv z
   case (t, z) of
     (TComposite _ _, LComposite c props) ->
-      maybe (Left ("Property " ++ x ++ " not found in " ++ c)) 
-            (\val -> Right (tenv, venv, val)) 
+      maybe (Left ("Property " ++ x ++ " not found in " ++ c))
+            (\val -> Right (tenv, venv, val))
             (lookup x props)
     _ -> Left "Get can only be applied on composite types"
 
@@ -52,28 +53,32 @@ eval tenv venv (Print x) = do
 
 eval tenv venv NoOp = Right (tenv, venv, NoOp)
 
+eval tenv venv (And x y) = do
+  (_, _, x') <- eval tenv venv x
+  (_, _, y') <- eval tenv venv y
+  case typeCheck tenv (And x y) of
+    Right TInt -> case (x', y') of
+      (LInt a, LInt b) -> Right (tenv, venv, LInt a)
+      _ -> Left "Both arguments should be of type int"
+    Right TBool -> case (x', y') of
+      (LBool a, LBool b) -> Right (tenv, venv, LBool (a && b))
+      _ -> Left "Both arguments should be of type bool"
+    Right (TList _) -> case (x', y') of
+      (LList a, LList b) -> Right (tenv, venv, LList (a `intersect` b))
+      _ -> Left "Both arguments should be of type list"
+    Left t -> Left t
 
-  -- case (x, y) of
-  --   (LInt a, LInt b) -> Right (tenv, venv, LInt (a + b))
-  --   (Var a, LInt b) -> do
-  --     case lookup a venv of
-  --       Just (LInt c) -> Right (tenv, venv, LInt (c + b))
-  --       Just _ -> Left "Var should be of type integer"
-  --       Nothing -> Left "Unbound variable found"
-  --   (LInt a, Var b) -> do
-  --     case lookup b venv of
-  --       Just (LInt c) -> Right (tenv, venv, LInt (a + c))
-  --       Just _ -> Left "Var should be of type integer"
-  --       Nothing -> Left "Unbound variable found"
-  --   (Var a, Var b) -> do
-  --     c <- case lookup b venv of
-  --       Just (LInt c) -> Right c
-  --       Just _ -> Left "Var should be of type integer"
-  --       Nothing -> Left "Unbound variable found"
-  --     d <- case lookup a venv of
-  --       Just (LInt d) -> Right d
-  --       Just _ -> Left "Var should be of type integer"
-  --       Nothing -> Left "Unbound variable found"
-  --     Right (tenv, venv, LInt (c + d))
-  --   _ -> Left "Both arguments should be of type integer"
-  -- _ -> Left "Can only add integers"
+eval tenv venv (Or x y) = do
+  (_, _, x') <- eval tenv venv x
+  (_, _, y') <- eval tenv venv y
+  case typeCheck tenv (And x y) of
+    Right TInt -> case (x', y') of
+      (LInt a, LInt b) -> Right (tenv, venv, LInt (if a == 0 then b else a))
+      _ -> Left "Both arguments should be of type int"
+    Right TBool -> case (x', y') of
+      (LBool a, LBool b) -> Right (tenv, venv, LBool (a || b))
+      _ -> Left "Both arguments should be of type bool"
+    Right (TList _) -> case (x', y') of
+      (LList a, LList b) -> Right (tenv, venv, LList (a `union` b))
+      _ -> Left "Both arguments should be of type list"
+    Left t -> Left t

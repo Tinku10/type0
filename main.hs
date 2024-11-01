@@ -6,7 +6,6 @@ import Types (Type(..), Expr(..))
 import TypeChecker (typeCheck, TypeEnv, ValueEnv)
 import Evaluator (eval)
 
-data IOEither a b = IOLeft (IO a) | IORight (IO b)
 
 runProgram :: TypeEnv -> ValueEnv -> [Expr] -> IO (Either String Expr)
 runProgram _ venv [] = return (Right NoOp)
@@ -16,7 +15,6 @@ runProgram tenv venv ((Print x):xs) = do
       print y
       runProgram tenv venv xs
     Left x -> return (Left x)
--- runProgram tenv venv (x:xs) = eval tenv venv x >>= \(tenv', venv', x') -> runProgram tenv' venv' xs
 runProgram tenv venv (x:xs) = do
   case eval tenv venv x of
     Right (tenv', venv', y) -> runProgram tenv' venv' xs
@@ -36,7 +34,10 @@ main = do
             ("name", LString "John"),
             ("age", LInt 20)
           ]),
-          Print (Assign (Var "a") (Get "name" (Var "w")))
+          Print (Assign (Var "a") (Get "name" (Var "w"))),
+          Print (And (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2])),
+          Print (And (LBool True) (LBool False)),
+          Print (Or (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2]))
         ]
 
   runProgram typeEnv valueEnv program
