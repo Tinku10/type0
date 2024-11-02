@@ -2,27 +2,16 @@ module Runner (runProgram) where
 
 import TypeChecker (TypeEnv, ValueEnv)
 import Types (Type(..), Expr(..))
-import Evaluator (eval)
+import Evaluator (eval, evalIO)
 
-runProgram :: TypeEnv -> ValueEnv -> [Expr] -> IO (Either String Expr)
-runProgram _ venv [] = return (Right NoOp)
-runProgram tenv venv ((Call x):xs) = do
-  let tenv' :: TypeEnv
-      tenv' = []
-      venv' :: ValueEnv
-      venv' = []
-  runProgram tenv' venv' x
-  runProgram tenv' venv xs
+runProgram :: Expr -> IO (Either String Expr)
+runProgram x = do
+  let tenv :: TypeEnv
+      tenv = []
+      venv :: ValueEnv
+      venv = []
 
-runProgram tenv venv ((Print x):xs) = do
-  case eval tenv venv x of
-    Right (_, _, y) -> do
-      print y
-      runProgram tenv venv xs
-    Left x -> return (Left x)
-
-runProgram tenv venv (x:xs) = do
-  case eval tenv venv x of
-    Right (tenv', venv', y) -> runProgram tenv' venv' xs
-    Left x -> return (Left x)
-
+  res <- evalIO tenv venv x
+  case res of
+    Left e -> return $ Left e
+    Right (_, _, a) -> return $ Right a

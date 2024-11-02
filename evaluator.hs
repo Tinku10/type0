@@ -1,4 +1,4 @@
-module Evaluator (eval) where
+module Evaluator (eval, evalIO) where
 
 import TypeChecker (TypeEnv, ValueEnv, typeCheck)
 import Types (Expr(..), Type(..))
@@ -83,27 +83,40 @@ eval tenv venv (Or x y) = do
       _ -> Left "Both arguments should be of type list"
     Left t -> Left t
 
-eval tenv venv (Call []) = Left "Cannot call an empty program"
-eval tenv venv (Call (x:xs)) = do
+
+-- a special type of evaluator that can perform IO
+-- it captures any call to `Call` and delegates others to the pure `eval`
+evalIO :: TypeEnv -> ValueEnv -> Expr -> IO (Either String (TypeEnv, ValueEnv, Expr))
+evalIO tenv venv (Call []) = return $ Left "Cannot call an empty program"
+evalIO tenv venv (Call xs) = do
   -- typecheck is not applicable right now
   -- it would be applicable when functions have types
   -- maybe we can pass arguments to call and have returns -> Call [Expr] Expr Expr
-  (tenv', venv', r) <- helper tenv venv (x:xs)
-  -- restore the environment
-  Right (tenv', venv', r)
+  helper tenv venv xs
 
   where
-    helper :: TypeEnv -> ValueEnv -> [Expr] -> Either String (TypeEnv, ValueEnv, Expr)
-    helper tenv venv [] = Right (tenv, venv, NoOp)
+    helper :: TypeEnv -> ValueEnv -> [Expr] -> IO (Either String (TypeEnv, ValueEnv, Expr))
+    helper tenv venv [] = return $ Right (tenv, venv, NoOp)
+    helper tenv venv ((Print x):xs) = do
+      let y = eval tenv venv x
+      case y of
+        Left e -> return $ Left e
+        Right (tenv', venv', a) -> do
+          print a
+          helper tenv' venv' xs
     helper tenv venv ((Call x):xs) = do
       let tenv' :: TypeEnv
           tenv' = []
           venv' :: ValueEnv
           venv' = []
-      (tenv'', venv'', _) <- eval tenv' venv' (Call x)
-      helper tenv' venv' xs
+      r <- evalIO tenv' venv' (Call x)
+      case r of
+        Left e -> return $ Left e
+        Right (_, _, a) -> helper tenv' venv' xs
     helper tenv venv (x:xs) = do
       case eval tenv venv x of
         Right (tenv', venv', y) -> helper tenv' venv' xs
-        Left x -> Left x
-   
+        Left x -> return $ Left x
+
+evalIO tenv venv x = return (eval tenv venv x)
+
