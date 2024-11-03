@@ -4,39 +4,42 @@ import Data.List (intersect)
 
 import Types (Type(..), Expr(..))
 import TypeChecker (typeCheck, TypeEnv, ValueEnv)
-import Evaluator (eval, evalIO)
+import Evaluator (eval)
 import Runner (runProgram)
 import Control.Monad (void)
 
-
 main = do
   -- program can call subprograms just like functions
-  let routine2 =
+  let addNum = Func [Var "x", Var "y"]
         [
-          Print (Assign (Var "hello") (Print (LString "Hello form routine2")))
-        ]
-
-  let routine1 =
-        [
-          Print (LString "Hello from routine1"),
-          Assign (Var "x") (LInt 10),
-          Assign (Var "y") (Add (Var "x") (LInt 10)),
+          Assign (Var "t") (LInt 1),
           Assign (Var "z") (Add (Var "x") (Var "y")),
-          Add (Var "x") (Var "y"),
-          Call routine2,
-          Call routine1,
-          Assign (Var "w") (LComposite "Person" [
-            ("name", LString "John"),
-            ("age", LInt 20)
-          ]),
-          Assign (Var "a") (Get "name" (Var "w")),
-          And (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2]),
-          And (LBool True) (LBool False),
-          Or (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2])
+          Return (LTuple [Add (Var "z") (Var "t")])
         ]
 
-  let mainProgram = Call routine1
+  let someFunc = Func []
+        [
+          Assign (Var "i") (LInt 10),
+          Assign (Var "j") (Add (Var "i") (LInt 10)),
+          Assign (LTuple [Var "add"]) (Call addNum [LInt 1, LInt 2]),
+          Assign (Var "x") (Add (Var "add") (Var "j")),
 
-  runProgram (Call routine1)
-  -- runProgram typeEnv valueEnv mainProgram
-  -- runProgram typeEnv valueEnv program
+          -- embed arguments into the child venv
+          -- Assign (LTuple [Var "ans"]) (Call routine2 [LInt 10, LInt 20]),
+          -- Assign (Var "w") (LComposite "Person" [
+          --   ("name", LString "John"),
+          --   ("age", LInt 20)
+          -- ]),
+          -- Assign (Var "a") (Get "name" (Var "w")),
+          Assign (Var "z") (And (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2])),
+          -- And (LBool True) (LBool False),
+          -- Or (LList [LInt 1, LInt 2]) (LList [LInt 1, LInt 3, LInt 2]),
+          Return (LTuple [Var "z"])
+        ]
+
+  let mainProgram = Func [] 
+        [
+          Return (Call someFunc [])
+        ]
+
+  runProgram $ Call mainProgram []
